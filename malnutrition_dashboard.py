@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import joblib
 import plotly.graph_objects as go
+from sklearn.preprocessing import StandardScaler
 
 # Load the trained model
 @st.cache_resource
@@ -13,9 +14,18 @@ model = load_model()
 # Load the dataset (with country info and indicators)
 @st.cache_data
 def load_data():
-    return pd.read_csv("final_data.csv")
+    raw = pd.read_csv("final_data.csv")
+    clean = raw.groupby('Country', as_index=False).agg({
+        'GDP_per_capita': 'mean',
+        'Avg_Food_Price_Index': 'mean'
+    }).dropna()
+    return clean
 
 data = load_data()
+
+# Fit scaler based on available data
+scaler = StandardScaler()
+scaler.fit(data[['GDP_per_capita', 'Avg_Food_Price_Index']])
 
 # Page layout
 st.set_page_config(page_title="Malnutrition Risk Predictor", layout="wide")
@@ -45,8 +55,9 @@ if st.button("🔍 Predict Risk"):
         'GDP_per_capita': [gdp],
         'Avg_Food_Price_Index': [food_index]
     })
-    pred = model.predict(input_df)[0]
-    prob = model.predict_proba(input_df)[0][1]  # Probability of class 1 (High Risk)
+    input_scaled = scaler.transform(input_df)
+    pred = model.predict(input_scaled)[0]
+    prob = model.predict_proba(input_scaled)[0][1]  # Probability of class 1 (High Risk)
 
     st.subheader("🔎 Prediction Result")
     if pred == 1:
@@ -74,16 +85,13 @@ if st.button("🔍 Predict Risk"):
 
 # ============ Bulk Prediction and Table =============
 
-# Clean the data by removing rows with missing predictors
-predict_df = data[['Country', 'GDP_per_capita', 'Avg_Food_Price_Index']].dropna()
+# Prepare prediction input
+predict_df = data[['Country', 'GDP_per_capita', 'Avg_Food_Price_Index']].copy()
+X_pred = predict_df[['GDP_per_capita', 'Avg_Food_Price_Index']]
+X_scaled = scaler.transform(X_pred)
+predict_df['Risk_Probability'] = model.predict_proba(X_scaled)[:, 1]
+top_risk_countries = predict_df.sort_values(by='Risk_Probability', ascending=False).head(10)
 
-if not predict_df.empty:
-    X_pred = predict_df[['GDP_per_capita', 'Avg_Food_Price_Index']]
-    predict_df['Risk_Probability'] = model.predict_proba(X_pred)[:, 1]
-    top_risk_countries = predict_df.sort_values(by='Risk_Probability', ascending=False).head(10)
-
-    st.markdown("---")
-    st.subheader("🌍 Top Countries with Predicted High Malnutrition Risk")
-    st.dataframe(top_risk_countries.reset_index(drop=True))
-else:
-    st.warning("⚠️ Not enough valid data for global prediction table.")
+st.markdown("---")
+st.subheader("🌍 Top Countries with Predicted High Malnutrition Risk")
+st.dataframe(top_risk_countries.reset_index(drop=True))
