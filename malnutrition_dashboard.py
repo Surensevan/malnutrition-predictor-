@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import joblib
 import plotly.graph_objects as go
+import plotly.express as px
 from sklearn.preprocessing import StandardScaler
 
 # Load the trained model
@@ -90,8 +91,26 @@ predict_df = data[['Country', 'GDP_per_capita', 'Avg_Food_Price_Index']].copy()
 X_pred = predict_df[['GDP_per_capita', 'Avg_Food_Price_Index']]
 X_scaled = scaler.transform(X_pred)
 predict_df['Risk_Probability'] = model.predict_proba(X_scaled)[:, 1]
-top_risk_countries = predict_df.sort_values(by='Risk_Probability', ascending=False).head(10)
+
+# Show only countries with risk probability > 30%
+high_risk_df = predict_df[predict_df['Risk_Probability'] > 0.3]
 
 st.markdown("---")
-st.subheader("🌍 Top Countries with Predicted High Malnutrition Risk")
-st.dataframe(top_risk_countries.reset_index(drop=True))
+st.subheader("🌍 Countries with Elevated Malnutrition Risk (>30%)")
+st.dataframe(high_risk_df.sort_values(by='Risk_Probability', ascending=False).reset_index(drop=True))
+
+# Add a bar chart for full risk probability distribution
+st.markdown("---")
+st.subheader("📊 Malnutrition Risk Probability by Country")
+bar_fig = px.bar(
+    predict_df.sort_values(by='Risk_Probability', ascending=False),
+    x='Risk_Probability',
+    y='Country',
+    orientation='h',
+    color='Risk_Probability',
+    color_continuous_scale='reds',
+    labels={'Risk_Probability': 'Risk Probability'},
+    title="Malnutrition Risk Score by Country"
+)
+bar_fig.update_layout(yaxis={'categoryorder':'total ascending'})
+st.plotly_chart(bar_fig, use_container_width=True)
