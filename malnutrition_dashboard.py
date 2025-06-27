@@ -15,7 +15,7 @@ def load_data():
 
 @st.cache_resource
 def load_model():
-    return joblib.load("best_log_reg_model.pkl")
+    return joblib.load("log_reg_model.pkl")
 
 df = load_data()
 model = load_model()
