@@ -13,7 +13,7 @@ st.markdown("Enter socioeconomic indicators to predict whether a region is at hi
 # Load trained model
 @st.cache_resource
 def load_model():
-    return joblib.load("best_log_reg_model.pkl")
+    return joblib.load("log_reg_model.pkl")
 
 model = load_model()
 
