@@ -1,56 +1,70 @@
-
 import streamlit as st
 import pandas as pd
+import numpy as np
 import joblib
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
-# === Load model and data ===
+# Load model
 @st.cache_data
+
 def load_model():
     return joblib.load("log_reg_model.pkl")
 
-@st.cache_data
-def load_data():
-    return pd.read_csv("final_data.csv")
-
 model = load_model()
-df = load_data()
 
-# === UI ===
+# Dummy country data (replace with actual data)
+data = pd.DataFrame({
+    "Country": ["Fiji", "India", "Nigeria", "Brazil", "USA"],
+    "GDP_per_capita": [1995.72, 2100.34, 1800.67, 8900.12, 62000.45],
+    "Food_Price_Index": [54.94, 85.23, 92.45, 65.34, 50.23]
+})
+
 st.set_page_config(page_title="Malnutrition Risk Predictor", layout="centered")
-st.title("🧠 Predict Malnutrition Risk")
-st.write("Select a country to assess malnutrition risk based on socioeconomic indicators.")
+st.title("\U0001F9E0 Predict Malnutrition Risk")
+st.markdown("Select a country to assess malnutrition risk based on socioeconomic indicators.")
 
-# === Country selection ===
-country = st.selectbox("Select Country", sorted(df['Country'].unique()))
+selected_country = st.selectbox("Select Country", data["Country"].unique())
 
-# === Autofill data ===
-country_data = df[df['Country'] == country].iloc[0]
-gdp = country_data['GDP_per_capita']
-food_index = country_data['Avg_Food_Price_Index']
+# Extract country data
+gdp = data[data["Country"] == selected_country]["GDP_per_capita"].values[0]
+fpi = data[data["Country"] == selected_country]["Food_Price_Index"].values[0]
 
-st.markdown("#### Socioeconomic Indicators")
-st.metric("GDP per Capita (USD)", f"{gdp:,.2f}")
-st.metric("Average Food Price Index", f"{food_index:.2f}")
+# Display indicators in cards
+col1, col2, col3 = st.columns(3)
+col1.metric("🌍 Country", selected_country)
+col2.metric("💰 GDP per Capita (USD)", f"${gdp:,.2f}")
+col3.metric("🍽️ Food Price Index", f"{fpi:.2f}")
 
-# === Predict button ===
-if st.button("🔍 Predict Risk"):
-    input_df = pd.DataFrame([[gdp, food_index]], columns=['GDP_per_capita', 'Avg_Food_Price_Index'])
-    pred = model.predict(input_df)[0]
-    prob = model.predict_proba(input_df)[0][1]  # probability of class 1 (High risk)
+# Predict button
+if st.button("\U0001F50D Predict Risk"):
+    input_df = pd.DataFrame([[gdp, fpi]], columns=["GDP_per_capita", "Avg_Food_Price_Index"])
+    prediction = model.predict(input_df)[0]
+    prob = model.predict_proba(input_df)
 
-    risk_label = "🔴 High Risk" if pred == 1 else "🟢 Low Risk"
-    st.subheader(f"### Prediction: {risk_label}")
-    st.write(f"**Model confidence (High Risk)**: {prob:.2%}")
+    # Display prediction result
+    st.subheader("\U0001F50D Prediction Result")
+    if prediction == 1:
+        st.error("⚠️ High Risk of Malnutrition")
+    else:
+        st.success("✅ Low Risk of Malnutrition")
 
-    # === Plot: Simple risk gauge ===
-    fig, ax = plt.subplots(figsize=(6, 1.2))
-    ax.barh([""], [prob], color="red" if pred == 1 else "green")
-    ax.set_xlim(0, 1)
-    ax.set_title("Risk Probability (High)")
-    ax.set_yticks([])
-    st.pyplot(fig)
+    confidence_percent = round(prob[0][1]*100, 2)
+    st.progress(confidence_percent / 100)
+    st.caption(f"Model Confidence for High Risk: **{confidence_percent}%**")
 
-# === Optional: show raw data ===
-with st.expander("📊 View Country Data"):
-    st.dataframe(df[df['Country'] == country])
+    # Display gauge chart
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=confidence_percent,
+        title={'text': "Malnutrition Risk Probability (%)"},
+        gauge={
+            'axis': {'range': [0, 100]},
+            'bar': {'color': "darkred" if prediction == 1 else "green"},
+            'steps': [
+                {'range': [0, 30], 'color': "lightgreen"},
+                {'range': [30, 70], 'color': "yellow"},
+                {'range': [70, 100], 'color': "lightcoral"}
+            ]
+        }
+    ))
+    st.plotly_chart(fig)
