@@ -20,9 +20,9 @@ def load_data():
         'GDP_per_capita': 'mean',
         'Avg_Food_Price_Index': 'mean'
     }).dropna()
-    return clean
+    return raw, clean
 
-data = load_data()
+raw_data, data = load_data()
 
 # Fit scaler based on available data
 scaler = StandardScaler()
@@ -114,3 +114,21 @@ bar_fig = px.bar(
 )
 bar_fig.update_layout(yaxis={'categoryorder':'total ascending'})
 st.plotly_chart(bar_fig, use_container_width=True)
+
+# ============ Choropleth Map of Stunting Rates =============
+st.markdown("---")
+st.subheader("🗺️ Global Stunting Rates (2022)")
+
+# Prepare choropleth data
+stunting_map_df = raw_data[raw_data['Year'] == 2022].dropna(subset=['Stunting (%)'])
+
+choropleth_fig = px.choropleth(
+    stunting_map_df,
+    locations="ISO_Code",
+    color="Stunting (%)",
+    hover_name="Country",
+    color_continuous_scale="Reds",
+    projection="natural earth",
+    title="Global Stunting Rates (2022)"
+)
+st.plotly_chart(choropleth_fig, use_container_width=True)
