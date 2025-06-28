@@ -31,9 +31,28 @@ scaler.fit(data[['GDP_per_capita', 'Avg_Food_Price_Index']])
 # Page layout
 st.set_page_config(page_title="Malnutrition Risk Predictor", layout="wide")
 st.title("🧠 Predict Malnutrition Risk")
-st.markdown("Select a country to assess malnutrition risk based on socioeconomic indicators.")
+
+# ============ Choropleth Map of Stunting Rates =============
+st.subheader("🗺️ Global Stunting Rates (2022)")
+
+# Prepare choropleth data
+stunting_map_df = raw_data[raw_data['Year'] == 2022].dropna(subset=['Stunting (%)'])
+
+choropleth_fig = px.choropleth(
+    stunting_map_df,
+    locations="ISO_Code",
+    color="Stunting (%)",
+    hover_name="Country",
+    color_continuous_scale="Reds",
+    projection="natural earth",
+    title="Global Stunting Rates (2022)"
+)
+st.plotly_chart(choropleth_fig, use_container_width=True)
 
 # Sidebar - Country selection
+st.markdown("---")
+st.markdown("Select a country to assess malnutrition risk based on socioeconomic indicators.")
+
 country_list = data['Country'].dropna().unique()
 selected_country = st.selectbox("Select Country", sorted(country_list))
 
@@ -114,21 +133,3 @@ bar_fig = px.bar(
 )
 bar_fig.update_layout(yaxis={'categoryorder':'total ascending'})
 st.plotly_chart(bar_fig, use_container_width=True)
-
-# ============ Choropleth Map of Stunting Rates =============
-st.markdown("---")
-st.subheader("🗺️ Global Stunting Rates (2022)")
-
-# Prepare choropleth data
-stunting_map_df = raw_data[raw_data['Year'] == 2022].dropna(subset=['Stunting (%)'])
-
-choropleth_fig = px.choropleth(
-    stunting_map_df,
-    locations="ISO_Code",
-    color="Stunting (%)",
-    hover_name="Country",
-    color_continuous_scale="Reds",
-    projection="natural earth",
-    title="Global Stunting Rates (2022)"
-)
-st.plotly_chart(choropleth_fig, use_container_width=True)
